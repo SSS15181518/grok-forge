@@ -56,9 +56,14 @@ async def chat_json(messages: list[dict], providers: list[dict], temperature: fl
                     "max_tokens": max_tokens}
             if p["json_mode"]:
                 body["response_format"] = {"type": "json_object"}
+            headers = {"Authorization": f"Bearer {p['api_key']}"}
             try:
-                r = await client.post(f"{p['base_url']}/chat/completions", json=body,
-                                      headers={"Authorization": f"Bearer {p['api_key']}"})
+                r = await client.post(f"{p['base_url']}/chat/completions", json=body, headers=headers)
+                # Groq rejects JSON-mode replies it can't validate (often an empty generation from a
+                # reasoning model); the prompt already demands JSON, so retry once without JSON mode.
+                if r.status_code == 400 and "json_validate_failed" in r.text:
+                    body.pop("response_format")
+                    r = await client.post(f"{p['base_url']}/chat/completions", json=body, headers=headers)
                 if r.status_code != 200:
                     errors.append(f"{p['name']}: HTTP {r.status_code} {r.text[:200]}")
                     continue
