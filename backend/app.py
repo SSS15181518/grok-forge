@@ -35,6 +35,7 @@ TOP_K = int(os.getenv("FEW_SHOT_K", "8"))
 REPAIR_ROUNDS = int(os.getenv("REPAIR_ROUNDS", "2"))
 MAX_LINES = 200
 ES_URL = os.getenv("ES_URL")  # optional: validate with Elasticsearch (same engine as Logstash)
+ALLOW_SAVE = os.getenv("ALLOW_SAVE_EXAMPLES", "true").lower() == "true"  # turn off on public deployments
 
 app = FastAPI(title="Grok Forge")
 
@@ -222,6 +223,8 @@ async def test(inp: TestIn):
 
 @app.post("/api/examples")
 def add_example(inp: ExampleIn):
+    if not ALLOW_SAVE:
+        raise HTTPException(403, "Saving examples is disabled on this public instance.")
     lines = split_lines(inp.logs)
     ev = evaluate(inp.pattern, lines, LIB, inp.pattern_definitions)
     if ev["metrics"]["match_rate"] < 1.0:

@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: grok-forge
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: LLM_1_NAME
+        value: groq
+      - key: LLM_1_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: LLM_1_MODEL
+        value: openai/gpt-oss-120b
+      - key: LLM_1_API_KEY
+        sync: false
+      - key: ALLOW_SAVE_EXAMPLES
+        value: "false"
