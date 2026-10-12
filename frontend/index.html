@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grok Forge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F2F4F6; --panel: #FFFFFF; --ink: #16202B; --muted: #5A6878; --rule: #CBD3DC;
+  --blue: #1F5FAD; --blue-ink: #174A88; --ok: #2E7D4F; --bad: #B3261E; --warn: #9A6400;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--sans); }
+header { padding: 28px 32px 18px; border-bottom: 1px solid var(--rule); background: var(--panel); }
+h1 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
+header p { margin: 4px 0 0; color: var(--muted); max-width: 70ch; }
+#status { margin-top: 8px; font-size: 13px; color: var(--muted); }
+main { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; gap: 0; min-height: calc(100vh - 110px); }
+aside { padding: 24px 28px; border-right: 1px solid var(--rule); background: var(--panel); }
+aside .sticky { position: sticky; top: 20px; }
+label { display: block; font-weight: 500; font-size: 14px; margin: 16px 0 6px; }
+label small { font-weight: 400; color: var(--muted); }
+textarea, input, select {
+  width: 100%; font: 13px/1.5 var(--mono); color: var(--ink); background: #FBFCFD;
+  border: 1px solid var(--rule); border-radius: 4px; padding: 10px 12px;
+}
+textarea:focus, input:focus, select:focus, button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+#logs { min-height: 260px; resize: vertical; white-space: pre; overflow-x: auto; }
+input, select { font-family: var(--sans); font-size: 14px; }
+.row { display: flex; gap: 10px; align-items: end; }
+.row > div { flex: 1; }
+button {
+  font: 500 14px var(--sans); border-radius: 4px; padding: 9px 14px; cursor: pointer;
+  border: 1px solid var(--blue); background: var(--panel); color: var(--blue-ink);
+}
+button.primary { background: var(--blue); color: #fff; width: 100%; padding: 12px; margin-top: 18px; font-size: 15px; }
+button:disabled { opacity: .55; cursor: progress; }
+.help { font-size: 13px; color: var(--muted); margin-top: 14px; }
+section#results { padding: 24px 32px 60px; }
+.empty { color: var(--muted); max-width: 60ch; margin-top: 40px; }
+.empty b { color: var(--ink); }
+.notes { border-left: 3px solid var(--warn); background: #FFF8EC; padding: 10px 14px; margin-bottom: 18px; font-size: 14px; }
+
+.cand { background: var(--panel); border: 1px solid var(--rule); border-left: 5px solid var(--ok); margin-bottom: 22px; }
+.cand.fail { border-left-color: var(--bad); }
+.cand-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; padding: 14px 18px 8px; }
+.cand-head h2 { margin: 0; font-size: 17px; font-weight: 600; }
+.cand-head .src { font-size: 13px; color: var(--muted); }
+.metrics { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 18px; }
+.chip { font-size: 12.5px; padding: 2px 8px; border-radius: 3px; background: #EEF1F4; color: var(--ink); }
+.chip.ok { background: #E3F2E8; color: var(--ok); }
+.chip.bad { background: #FBE9E7; color: var(--bad); }
+.body { padding: 12px 18px 16px; }
+.expl { margin: 0 0 10px; color: #2B3946; max-width: 90ch; }
+.pattern { min-height: 64px; font-size: 12.5px; white-space: pre-wrap; word-break: break-all; }
+.defs { min-height: 40px; font-size: 12px; margin-top: 6px; }
+
+/* the annotated specimen: the log line with captures highlighted in place */
+.specimen-wrap { margin: 14px 0 6px; }
+.specimen-nav { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+.specimen-nav button { padding: 2px 9px; font-size: 13px; }
+.specimen {
+  font: 14px/2.1 var(--mono); background: #10171F; color: #C9D4DF; padding: 14px 16px; border-radius: 4px;
+  white-space: pre-wrap; word-break: break-all;
+}
+.specimen mark { color: #0E151C; border-radius: 2px; padding: 2px 0; cursor: default; }
+.specimen mark.dim { opacity: .25; }
+.specimen .nomatch { color: #F2A39C; }
+
+table.fields { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+table.fields td { border-top: 1px solid #E3E8ED; padding: 5px 8px; vertical-align: top; }
+table.fields td:first-child { width: 38%; font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+table.fields td:last-child { font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; vertical-align: -1px; }
+.num { color: var(--blue-ink); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+details { margin-top: 12px; }
+summary { cursor: pointer; font-size: 14px; color: var(--blue-ink); }
+pre.cfg { font: 12.5px/1.5 var(--mono); background: #F6F8FA; border: 1px solid var(--rule); padding: 12px; overflow-x: auto; }
+.failed-lines { font: 12.5px/1.5 var(--mono); color: var(--bad); white-space: pre-wrap; word-break: break-all; }
+.toast { position: fixed; bottom: 20px; right: 20px; background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 4px; font-size: 14px; opacity: 0; transition: opacity .2s; }
+.toast.show { opacity: 1; }
+@media (max-width: 860px) {
+  main { grid-template-columns: 1fr; }
+  aside { border-right: 0; border-bottom: 1px solid var(--rule); }
+  section#results, header { padding-left: 18px; padding-right: 18px; }
+}
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Grok Forge</h1>
+  <p>Paste sample log lines and get grok patterns that have been tested against every line before you see them.</p>
+  <div id="status">Connecting to the backend...</div>
+</header>
+<main>
+  <aside><div class="sticky">
+    <label for="logs">Sample log lines <small>one per line, 3 to 20 varied lines work best</small></label>
+    <textarea id="logs" spellcheck="false" placeholder="2026-10-08 14:32:01,123 ERROR [main] com.acme.OrderService - Order 4521 failed"></textarea>
+    <label for="hint">Hint <small>optional</small></label>
+    <input id="hint" placeholder="e.g. use ECS names, put the order id in [order][id]">
+    <div class="row">
+      <div>
+        <label for="n">Candidates to request</label>
+        <select id="n"><option>3</option><option selected>4</option><option>6</option><option>8</option></select>
+      </div>
+    </div>
+    <button class="primary" id="go">Generate patterns</button>
+    <p class="help">Each candidate is matched against all your lines. Failing candidates are sent back to the model with the exact failures and fixed automatically, up to two times.</p>
+  </div></aside>
+  <section id="results">
+    <div class="empty"><b>No patterns yet.</b> Paste a few log lines on the left and choose Generate patterns. Include lines that differ (optional fields, different levels) so the patterns cover them.</div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const COLORS = ["#8FC1F2","#F2C46B","#9EDCA9","#F29B9B","#C6A8F0","#7FD6D0","#F5B08A","#D3DB7A","#F0A8D2","#B0BEC9"];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let LOGS = "";
+
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 2200); }
+
+async function api(path, body) {
+  const r = await fetch(path, { method: body ? "POST" : "GET", headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.detail || `Request failed with status ${r.status}`);
+  return data;
+}
+
+api("/api/health").then(h => {
+  const m = h.providers.length ? h.providers.map(p => `${p.model} via ${p.name}`).join(", then ") : "no model configured (only built-in patterns will be found)";
+  $("#status").textContent = `Model: ${m}. ${h.examples} stored examples, ${h.patterns} grok patterns loaded${h.es_validation ? ", Elasticsearch validation on" : ""}.`;
+}).catch(() => $("#status").textContent = "Backend not reachable. Start it with: uvicorn app:app --reload (from the backend folder).");
+
+$("#go").onclick = async () => {
+  LOGS = $("#logs").value;
+  if (!LOGS.trim()) { $("#logs").focus(); return toast("Paste at least one log line first."); }
+  const btn = $("#go"); btn.disabled = true; btn.textContent = "Generating and testing...";
+  $("#results").innerHTML = `<div class="empty">Finding built-in matches, asking the model, and testing every candidate against your ${LOGS.split("\n").filter(l=>l.trim()).length} lines...</div>`;
+  try {
+    const res = await api("/api/generate", { logs: LOGS, hint: $("#hint").value, num_candidates: +$("#n").value });
+    render(res);
+  } catch (e) {
+    $("#results").innerHTML = `<div class="notes">${esc(e.message)}</div>`;
+  } finally { btn.disabled = false; btn.textContent = "Generate patterns"; }
+};
+
+function render(res) {
+  const box = $("#results"); box.innerHTML = "";
+  if (res.notes?.length) box.insertAdjacentHTML("beforeend", `<div class="notes">${res.notes.map(esc).join("<br>")}</div>`);
+  if (!res.candidates.length) { box.insertAdjacentHTML("beforeend", `<div class="empty">No candidate matched. Add a hint describing the format, or check that the model is configured.</div>`); return; }
+  res.candidates.forEach((c, i) => box.appendChild(card(c, i)));
+}
+
+function card(c, idx) {
+  const el = document.createElement("article");
+  const m = c.metrics || {};
+  const pass = m.match_rate === 1;
+  el.className = "cand" + (pass ? "" : " fail");
+  el.innerHTML = `
+    <div class="cand-head">
+      <h2>${idx + 1}. ${esc(c.name || "Candidate")}</h2>
+      <span class="src">${esc(c.style || "")}${c.source ? ", " + esc(c.source) : ""}${c.repaired ? ", fixed after " + c.repaired + " repair round(s)" : ""}</span>
+    </div>
+    <div class="metrics">
+      <span class="chip ${pass ? "ok" : "bad"}">${c.error ? "Does not compile" : `Matches ${m.matched}/${m.total} lines`}</span>
+      ${c.error ? "" : `<span class="chip">${m.fields} fields</span><span class="chip">${m.typed_fields} typed</span>
+      <span class="chip">${Math.round((m.coverage||0)*100)}% of line captured</span>
+      <span class="chip">${m.anchored ? "anchored" : "not anchored"}</span>
+      <span class="chip">score ${m.score}</span>`}
+      ${c.es_check && !c.es_check.error ? `<span class="chip ${c.es_check.matched === c.es_check.total ? "ok" : "bad"}">Elasticsearch: ${c.es_check.matched}/${c.es_check.total}</span>` : ""}
+    </div>
+    <div class="body">
+      ${c.explanation ? `<p class="expl">${esc(c.explanation)}</p>` : ""}
+      ${c.error ? `<p class="failed-lines">${esc(c.error)}</p>` : ""}
+      <textarea class="pattern" spellcheck="false" aria-label="Grok pattern">${esc(c.pattern)}</textarea>
+      <textarea class="defs" spellcheck="false" aria-label="Custom pattern definitions (JSON)" placeholder='Custom patterns as JSON, e.g. {"ORDER_ID": "ORD-\\\\d{6}"}'>${Object.keys(c.pattern_definitions||{}).length ? esc(JSON.stringify(c.pattern_definitions, null, 1)) : ""}</textarea>
+      <div class="view"></div>
+      <div class="actions">
+        <button data-a="test">Test my edits</button>
+        <button data-a="copy">Copy Logstash config</button>
+        <button data-a="save">Save as example</button>
+      </div>
+      <details><summary>Logstash config</summary><pre class="cfg"></pre></details>
+    </div>`;
+  el._c = c;
+  showResults(el, c);
+  el.querySelector(".actions").onclick = e => action(el, e.target.dataset.a);
+  return el;
+}
+
+function readEdits(el) {
+  const raw = el.querySelector(".defs").value.trim();
+  let defs = {};
+  if (raw) { try { defs = JSON.parse(raw); } catch { throw new Error("Custom patterns must be valid JSON, for example {\"ORDER_ID\": \"ORD-\\\\d{6}\"}"); } }
+  return { pattern: el.querySelector(".pattern").value.trim(), pattern_definitions: defs };
+}
+
+async function action(el, a) {
+  if (!a) return;
+  try {
+    if (a === "copy") { await navigator.clipboard.writeText(el._c.logstash || ""); return toast("Logstash config copied"); }
+    const ed = readEdits(el);
+    if (a === "test") {
+      const r = await api("/api/test", { logs: LOGS, ...ed });
+      el._c = { ...el._c, ...r }; showResults(el, el._c, true);
+      toast(r.metrics.match_rate === 1 ? "Matches every line" : "Some lines do not match");
+    }
+    if (a === "save") {
+      const r = await api("/api/examples", { logs: LOGS, ...ed, notes: el._c.name || "" });
+      toast(`Saved. ${r.examples} examples stored`);
+    }
+  } catch (e) { toast(e.message); }
+}
+
+function showResults(el, c, refreshHead) {
+  el.querySelector(".cfg").textContent = c.logstash || "";
+  const view = el.querySelector(".view");
+  const results = c.results || [];
+  if (refreshHead) {
+    const m = c.metrics; const pass = m.match_rate === 1;
+    el.classList.toggle("fail", !pass);
+    el.querySelector(".chip").className = "chip " + (pass ? "ok" : "bad");
+    el.querySelector(".chip").textContent = c.error ? "Does not compile" : `Matches ${m.matched}/${m.total} lines`;
+  }
+  if (!results.length) { view.innerHTML = c.error ? "" : ""; return; }
+  let i = Math.max(0, results.findIndex(r => !r.matched)); if (results.every(r => r.matched)) i = 0;
+  const draw = () => {
+    const r = results[i];
+    const fieldNames = [...new Set(Object.keys(r.fields || {}))];
+    const color = f => COLORS[fieldNames.indexOf(f) % COLORS.length];
+    view.innerHTML = `
+      <div class="specimen-wrap">
+        <div class="specimen-nav">
+          <span>Line ${i + 1} of ${results.length}${r.matched ? "" : ", no match" + (r.error ? " (" + esc(r.error) + ")" : "")}</span>
+          <span><button data-d="-1" aria-label="Previous line">Previous</button> <button data-d="1" aria-label="Next line">Next</button></span>
+        </div>
+        <div class="specimen">${r.matched ? annotate(r.line, r.spans, color) : `<span class="nomatch">${esc(r.line)}</span>`}</div>
+      </div>
+      ${r.matched ? `<table class="fields">${fieldNames.map(f => `<tr data-f="${esc(f)}"><td><span class="sw" style="background:${color(f)}"></span>${esc(f)}</td><td class="${typeof r.fields[f] === "number" ? "num" : ""}">${esc(JSON.stringify(r.fields[f]))}</td></tr>`).join("")}</table>` : ""}
+      ${results.some(x => !x.matched) ? `<details><summary>Lines that do not match (${results.filter(x => !x.matched).length})</summary><div class="failed-lines">${results.filter(x => !x.matched).map(x => esc(x.line)).join("\n")}</div></details>` : ""}`;
+    view.querySelectorAll(".specimen-nav button").forEach(b => b.onclick = () => { i = (i + +b.dataset.d + results.length) % results.length; draw(); });
+    view.querySelectorAll("tr[data-f]").forEach(tr => {
+      tr.onmouseenter = () => view.querySelectorAll("mark").forEach(mk => mk.classList.toggle("dim", mk.dataset.f !== tr.dataset.f));
+      tr.onmouseleave = () => view.querySelectorAll("mark").forEach(mk => mk.classList.remove("dim"));
+    });
+  };
+  draw();
+}
+
+function annotate(line, spans, color) {
+  const chars = Array.from(line);  // code points, matching Python string offsets
+  let out = "", pos = 0;
+  for (const [s, e, f] of spans || []) {
+    if (s < pos) continue;
+    out += esc(chars.slice(pos, s).join(""));
+    out += `<mark data-f="${esc(f)}" title="${esc(f)}" style="background:${color(f)}">${esc(chars.slice(s, e).join(""))}</mark>`;
+    pos = e;
+  }
+  return out + esc(chars.slice(pos).join(""));
+}
+</script>
+</body>
+</html>
